@@ -159,6 +159,10 @@ body {
     overflow: hidden;
 }
 
+.is-hidden {
+    display: none !important;
+}
+
 @media (min-width: 768px) {
     .auth-page {
         grid-template-columns: 1fr 1fr; 
