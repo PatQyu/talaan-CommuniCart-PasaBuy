@@ -1,6 +1,7 @@
 import os
 import json
 import requests
+from db_config import get_db_connection
 from flask import Flask, request, jsonify
 from google import genai
 from google.genai import types
@@ -9,20 +10,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-
-#MOCK DB Change when DB is available
-MOCK_DB = [
-    {"id": 1, "category": "Rice", "brand": "NFA Well-Milled", "unit": "kg", "price": 45.00},
-    {"id": 2, "category": "Rice", "brand": "Sinandomeng Premium", "unit": "kg", "price": 58.00},
-    {"id": 4, "category": "Chicken", "brand": "Palengke Cut", "unit": "kg", "price": 200.00},
-    {"id": 5, "category": "Pork", "brand": "Kasim", "unit": "kg", "price": 320.00},
-    {"id": 7, "category": "Canned Goods", "brand": "555 Sardines", "unit": "piece", "price": 19.50},
-    {"id": 8, "category": "Canned Goods", "brand": "Ligo Sardines", "unit": "piece", "price": 21.00},
-    {"id": 11, "category": "Instant Noodles", "brand": "Payless", "unit": "pack", "price": 9.00},
-    {"id": 12, "category": "Instant Noodles", "brand": "Lucky Me!", "unit": "pack", "price": 11.50},
-    {"id": 13, "category": "Bath Soap", "brand": "Bioderm Yellow", "unit": "bar", "price": 18.00},
-    {"id": 14, "category": "Bath Soap", "brand": "Safeguard Pure White", "unit": "bar", "price": 31.25},
-]
 
 def parse_raw_groceries(raw_input_string):
     """Uses Gemini to clean and categorize messy user inputs."""
@@ -45,15 +32,33 @@ def parse_raw_groceries(raw_input_string):
         return []
 
 def find_cheapest_and_alternatives(category_name):
-    """Searches the mock DB for a category and sorts by cheapest price."""
-    matched_items = [item for item in MOCK_DB if item['category'].lower() == category_name.lower()]
-    if not matched_items:
+    conn = get_db_connection() # Connect to the database
+    cursor = conn.cursor(dictionary=True)
+
+    # Query to find the cheapest product and alternatives
+    query = """
+    SELECT p.product_id, p.product_name, p.general_name, p.price, b.brand_name, c.category_name
+    FROM products p
+    JOIN brands b
+        ON p.brand_id = b.brand_id
+    JOIN categories c
+        ON p.category_id = c.category_id
+    WHERE p.general_name = %s
+    ORDER BY p.price ASC;
+    """
+
+    cursor.execute(query, (category_name,))
+    products = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    if not products:
         return None
-        
-    sorted_items = sorted(matched_items, key=lambda x: x['price'])
+
     return {
-        "selected": sorted_items[0], 
-        "alternatives": sorted_items[1:] 
+        "selected": products[0],
+        "alternatives": products[1:]
     }
 
 def get_nearby_stores(lat, lng):
@@ -98,6 +103,13 @@ def health_check():
 def calculate_grocery_list():
     try:
         data = request.get_json()
+        # Extract user inputs
+        user_id = data.get("user_id")
+        elderly = data.get("elderly_count", 0)
+        adult = data.get("adult_count", 0)
+        teen = data.get("teen_count", 0)
+        children = data.get("children_count", 0)
+        ration_days = data.get("ration_days", 0)
         budget = float(data.get('budget', 0.0))
         raw_items_array = data.get('raw_items', [])
 
@@ -108,12 +120,40 @@ def calculate_grocery_list():
         final_receipt = []
         total_cost = 0.0
 
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Insert user input data into the database
+        cursor.execute(
+            """INSERT INTO userinputs
+            (user_id, elderly_count, adult_count, teen_count, children_count, budget, ration_days)
+            VALUES (%s,%s,%s,%s,%s,%s,%s)""",
+            (user_id, elderly, adult, teen, children, budget,ration_days)
+        )
+
+        conn.commit()
+        input_id = cursor.lastrowid
+
         for category in clean_categories:
             result = find_cheapest_and_alternatives(category)
+
+            # If a product is found, insert it into the grocery_list table
+            if result:
+                selected = result["selected"]
+
+                cursor.execute(
+                """INSERT INTO grocery_list (input_id, product_id, quantity, unit_price, subtotal)
+                VALUES (%s,%s,%s,%s,%s)""", (input_id, selected["product_id"], 1, selected["price"], selected["price"] )
+                )
             if result:
                 item_cost = result['selected']['price']
                 total_cost += item_cost
                 final_receipt.append(result)
+
+        conn.commit()
+
+        cursor.close()
+        conn.close()
 
         return jsonify({
             "status": "success",
@@ -122,7 +162,7 @@ def calculate_grocery_list():
             "remaining_balance": budget - total_cost,
             "receipt": final_receipt
         }), 200
-
+    
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
     
