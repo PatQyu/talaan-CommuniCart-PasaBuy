@@ -1,0 +1,32 @@
+:root {
+    /* Main */
+    --red-orange: #ff6973;
+    --peach-3: #ffb0a3;
+    --peach-2: #ffeecc;
+    --peach-1: #fff9f0;
+
+    /* Text Color */
+    --type-1: #46425e;
+    --type-2: #17888c; 
+
+    /* Layout */
+    --surface: #ffffff;   
+    --line: #ffeacc; 
+    
+    /* Interactables */
+    --ring: rgba(0, 185, 190, 0.22);
+    --shadow: 0 14px 34px rgba(70, 66, 94, 0.08);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--peach-2); 
+    color: var(--type-1);
+    
+    font-family: 'Space Grotesk', sans-serif;
+    margin: 0;
+    padding: 0;
+}
