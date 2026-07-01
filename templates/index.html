@@ -22,8 +22,8 @@
 
 		<section class="auth-panel">
 			<div class="auth-tabs" role="tablist" aria-label="Authentication Tabs">
-				<button class="tab_is_active" type="button">Login</button>
-				<button class="tab" type="button">Create Account</button>
+				<button id="login-tab" class="tab_is_active" type="button">Login</button>
+				<button id="register-tab" class="tab" type="button">Create Account</button>
 			</div>
 
 			<form id="login-form" class="auth-form" action="#" method="post">
@@ -35,19 +35,37 @@
 
 				<div class="auth-row">
 					<label class="checkbox_wrap" for="remember">
-						<input id="remember" name="remember" type="checkbox">
-						Remember me
+						<input id="remember" name="remember" type="checkbox"> Remember me
 					</label>
 					<a href="#">Forgot password?</a>
 				</div>
 				<button class="btn-primary" type="submit">Sign In</button>
-
+			
+				<p class="auth-footnote">
+					Don't have an account? Sign up <a href="#" id="register_sc">here</a>
+				</p>
 			</form>
 
-			<p class="auth-footnote">
-				Don't have an account? Sign up <a href="#">here</a>
-			</p>
+			<form id="register-form"class="auth-form is-hidden" action="#" method="post">
+				<label for="new-username">Username</label>
+				<input id="new-username" name="username" type="text" placeholder="Enter username" required>
+
+				<label for="new-email">Email</label>
+				<input id="new-email" name="email" type="email" placeholder="you@example.com" required>
+
+				<label for="new-password">Password</label>
+				<input id="new-password" name="password" type="password" placeholder="Enter password" required>
+
+				<button class="btn-primary" type="submit">Create Account</button>
+
+				<p class="auth-footnote">
+					Already have an account? Login <a href="#" id="login_sc">here</a>
+				</p>
+			</form>
+
 		</section>
 	</main>
+
+	<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
 </body>
 </html>
