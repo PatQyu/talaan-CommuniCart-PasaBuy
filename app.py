@@ -1,24 +1,50 @@
 import os
 import json
 import requests
-from db_config import get_db_connection
+import mysql.connector
+from dotenv import load_dotenv
 from flask import Flask, request, jsonify
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from werkzeug.security import generate_password_hash, check_password_hash
 
 load_dotenv()
 
 app = Flask(__name__)
+load_dotenv()
+
+def get_db_connection():
+    """Establishes and returns a connection to the MySQL database."""
+    return mysql.connector.connect(
+        host=os.getenv("MYSQL_HOST", "127.0.0.1"),
+        user=os.getenv("MYSQL_USER", "root"),
+        password=os.getenv("MYSQL_PASSWORD", "DLq28@03LjpDQ2005!LjM"),
+        database=os.getenv("MYSQL_DB", "pasabuy_db")
+    )
 
 def parse_raw_groceries(raw_input_string):
     """Uses Gemini to clean and categorize messy user inputs."""
     client = genai.Client()
     prompt = f"""
-    Map the following user input ONLY to these exact database categories:
-    - Rice, Chicken, Pork, Canned Goods, Instant Noodles, Bath Soap, Shampoo.
-    Return ONLY a valid JSON array of strings. No markdown.
-    User Input: "{raw_input_string}"
+    You are an expert grocery data parser for the "Sapat App". Your goal is to map unstructured user requests into a strict list of database categories.
+
+    ALLOWED CATEGORIES:
+    ["FRUITS", "CONDIMENTS", "OIL", "SPICES", "FISH", "VEGETABLES", "RICE", "CORN", "BEANS", "MEAT", "LIVESTOCK AND POULTRY PRODUCTS", "CANNED GOODS", 
+    "BATH SOAP", "BATTERIES", "SALT", "PROCESSED MILK", "COFFEE", "BOTTLED WATER", "BREAD", "CANNED GOODS", "NOODLES", "SNACKS", "BEVERAGES", "SHAMPOO", 
+    "TOOTHPASTE", "HAIR CONDITIONER", "DISHWASHING", "DETERGENT", "FABRIC CONDITIONER", "DAIRY & SPREADS", "COFFEE", "PANTRY STAPLES", "NOODLES & PASTA", 
+    "CONDIMENTS & SAUCES", "SNACKS & SNACK FOODS", "LOTION", "BLEACH"]
+
+    RULES:
+    - If an item doesn't fit into an allowed category, ignore it entirely.
+    - If multiple items map to the same category, only list the category once.
+    - Output must be a pure JSON array of strings. No markdown, no explanations.
+
+    EXAMPLES:
+    Input: "bibili ako ng bigas, sardinas, at sabon"
+    Output: ["RICE", "CANNED GOODS", "BATH SOAP"]
+    
+    USER INPUT TO PARSE: "{raw_input_string}"
     """
     try:
         response = client.models.generate_content(
@@ -32,18 +58,17 @@ def parse_raw_groceries(raw_input_string):
         return []
 
 def find_cheapest_and_alternatives(category_name):
-    conn = get_db_connection() # Connect to the database
+    conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    # Query to find the cheapest product and alternatives
     query = """
-    SELECT p.product_id, p.product_name, p.general_name, p.price, b.brand_name, c.category_name
+    SELECT p.product_id, p.product_name, p.price, b.brand_name, c.category_name
     FROM products p
-    JOIN brands b
+    LEFT JOIN brands b
         ON p.brand_id = b.brand_id
     JOIN categories c
         ON p.category_id = c.category_id
-    WHERE p.general_name = %s
+    WHERE c.category_name = %s
     ORDER BY p.price ASC;
     """
 
@@ -55,6 +80,9 @@ def find_cheapest_and_alternatives(category_name):
 
     if not products:
         return None
+    
+    for product in products:
+        product['price'] = float(product['price'])
 
     return {
         "selected": products[0],
@@ -71,8 +99,8 @@ def get_nearby_stores(lat, lng):
     
     params = {
         "location": f"{lat},{lng}",
-        "radius": 5000,
-        "keyword": "grocery OR wet market OR palengke",
+        "radius": 10000,
+        "keyword": "grocery OR wet market OR palengke OR supermarket OR super market OR PUREGOLD OR Waltermart",
         "type": "store",
         "key": api_key
     }
@@ -99,11 +127,57 @@ def get_nearby_stores(lat, lng):
 def health_check():
     return jsonify({"status": "active", "message": "Sapat App Backend engine is running!"})
 
+@app.route('/signup', methods=['POST'])
+def signup():
+    data = request.get_json()
+    username = data.get('username')
+    email = data.get('email')
+    password = data.get('password')
+
+    hashed_password = generate_password_hash(password)
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO users (username, email, user_password) VALUES (%s, %s, %s)",
+            (username, email, hashed_password)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return jsonify({"status": "success", "message": "User created successfully"}), 201
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+    user = cursor.fetchone()
+    
+    cursor.close()
+    conn.close()
+
+    if user and check_password_hash(user['user_password'], password):
+        return jsonify({
+            "status": "success", 
+            "message": "Login successful", 
+            "user_id": user['user_id']
+        }), 200
+    else:
+        return jsonify({"status": "error", "message": "Invalid email or password"}), 401
+
 @app.route('/calculate', methods=['POST'])
 def calculate_grocery_list():
     try:
         data = request.get_json()
-        # Extract user inputs
         user_id = data.get("user_id")
         elderly = data.get("elderly_count", 0)
         adult = data.get("adult_count", 0)
@@ -123,7 +197,6 @@ def calculate_grocery_list():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Insert user input data into the database
         cursor.execute(
             """INSERT INTO userinputs
             (user_id, elderly_count, adult_count, teen_count, children_count, budget, ration_days)
@@ -134,20 +207,34 @@ def calculate_grocery_list():
         conn.commit()
         input_id = cursor.lastrowid
 
+        total_portions_per_day = (adult * 1.0) + (teen * 1.0) + (elderly * 0.8) + (children * 0.5)
+
+        total_multiplier = max(1, round(total_portions_per_day * (ration_days / 7)))
+
+        non_food_categories = ["SHAMPOO", "HAIR CONDITIONER", "DETERGENT", "FABRIC CONDITIONER", "DISHWASHING", "TOOTHPASTE", "BATH SOAP", "BLEACH"]
+
         for category in clean_categories:
             result = find_cheapest_and_alternatives(category)
 
-            # If a product is found, insert it into the grocery_list table
+            if category in non_food_categories:
+                calculated_qty = max(1, round(total_multiplier * 0.25)) 
+            else:
+                calculated_qty = total_multiplier
+
             if result:
                 selected = result["selected"]
+                item_subtotal = selected["price"] * calculated_qty
 
                 cursor.execute(
-                """INSERT INTO grocery_list (input_id, product_id, quantity, unit_price, subtotal)
-                VALUES (%s,%s,%s,%s,%s)""", (input_id, selected["product_id"], 1, selected["price"], selected["price"] )
+                    """INSERT INTO grocery_list (input_id, product_id, quantity, unit_price, subtotal)
+                    VALUES (%s,%s,%s,%s,%s)""", 
+                    (input_id, selected["product_id"], calculated_qty, selected["price"], item_subtotal)
                 )
-            if result:
-                item_cost = result['selected']['price']
-                total_cost += item_cost
+                
+                total_cost += float(item_subtotal)
+                
+                result["selected"]["calculated_qty"] = calculated_qty
+                result["selected"]["subtotal"] = item_subtotal
                 final_receipt.append(result)
 
         conn.commit()
