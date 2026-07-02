@@ -80,34 +80,13 @@ python app.py
 ### 6. Link
 Copy the link and add /auth
 
---- 
-
-## Project Structure
-│
-├── database/
-│   ├── sample_products.csv
-│   ├── schema.sql
-│   ├── seed.sql
-│   └── seed_db.py
-│
-├── static/
-│   ├── css/
-│   └── js/
-│
-├── templates/
-│
-├── .gitignore
-├── app.py
-├── crud.py
-├── requirements.txt
-└── README.md
-
 ---
 
 ## Contributors
-1. Leonard F. Futol
-2. Joshua A. Renovales
-3. Patrick DC. Quitoriano
+1. John Dominique G.  Aquino
+2. Leonard F. Futol
+3. Joshua A. Renovales
+4. Patrick DC. Quitoriano
 
 ## License
 
