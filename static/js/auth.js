@@ -28,3 +28,61 @@ register_tab.addEventListener('click', showRegisterForm);
 
 login_sc.addEventListener('click', showLoginForm);
 register_sc.addEventListener('click', showRegisterForm);
+
+login_form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+
+    try {
+        const response = await fetch('/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email, password: password })
+        });
+        
+        const data = await response.json();
+
+        if (response.ok && data.status === 'success') {
+            localStorage.setItem('user_id', data.user_id);
+            alert("Login success");
+            
+            window.location.href = '/calculator'; 
+        } else {
+            alert(data.message || "Invalid email or password.");
+        }
+    } catch (error) {
+        console.error("Login Error:", error);
+        alert("Cannot connect to the server.");
+    }
+});
+
+register_form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const username = document.getElementById('new-username').value;
+    const email = document.getElementById('new-email').value;
+    const password = document.getElementById('new-password').value;
+
+    try {
+        const response = await fetch('/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: username, email: email, password: password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.status === 'success') {
+            alert("Account created");
+            register_form.reset();
+            showLoginForm();
+        } else {
+            alert(data.message || "Error creating account.");
+        }
+    } catch (error) {
+        console.error("Signup Error:", error);
+        alert("Cannot connect to the server.");
+    }
+});

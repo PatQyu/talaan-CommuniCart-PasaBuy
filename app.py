@@ -7,6 +7,7 @@ from flask import Flask, request, jsonify
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from flask import render_template
 from werkzeug.security import generate_password_hash, check_password_hash
 
 load_dotenv()
@@ -194,6 +195,10 @@ def signup():
         return jsonify({"status": "success", "message": "User created successfully"}), 201
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
+
+@app.route('/auth', methods=['GET'])
+def auth_page():
+    return render_template('index.html')
 
 @app.route('/login', methods=['POST'])
 def login():
