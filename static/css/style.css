@@ -6,6 +6,7 @@ body {
     min-height: 80vh;
 }
 
+/* Auth Page */
 .auth-brand {
     background-color: var(--peach-2); 
     padding: 3rem;
@@ -164,8 +165,38 @@ body {
     display: none !important;
 }
 
+/* Resizing */
 @media (min-width: 768px) {
     .auth-page {
         grid-template-columns: 1fr 1fr; 
+    }
+
+    .grid-two {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .grid-four {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (min-width: 1024px) {
+    .output-page {
+        grid-template-columns: 1.05fr 1.2fr;
+        grid-template-areas:
+            "input receipt"
+            "map map";
+    }
+
+    .input-panel {
+        grid-area: input;
+    }
+
+    .receipt-panel {
+        grid-area: receipt;
+    }
+
+    .map-panel {
+        grid-area: map;
     }
 }
