@@ -21,7 +21,8 @@ def get_db_connection():
         host=os.getenv("MYSQL_HOST", "127.0.0.1"),
         user=os.getenv("MYSQL_USER", "root"),
         password=os.getenv("MYSQL_PASSWORD", "DLq28@03LjpDQ2005!LjM"),
-        database=os.getenv("MYSQL_DB", "pasabuy_db")
+        database=os.getenv("MYSQL_DB", "pasabuy_db"),
+        port=os.getenv("MYSQL_PORT", 3306)
     )
 
 def parse_raw_groceries(raw_input_string):
