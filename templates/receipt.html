@@ -140,8 +140,9 @@
         };
     </script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
     {% if maps_api_key %}
-    <script src="https://maps.googleapis.com/maps/api/js?key={{ maps_api_key }}&callback=initMap" async defer></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ maps_api_key }}&callback=initMap&loading=async"></script>
     {% endif %}
 </body>
 </html>

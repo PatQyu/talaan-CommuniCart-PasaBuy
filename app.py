@@ -87,8 +87,15 @@ def fetch_candidate_products(categories):
     conn.close()
     
     for p in products:
-        p['price'] = float(p['price'])
-        p['unit_per_qty'] = float(p['unit_per_qty'])
+        price_val = p['price']
+        if isinstance(price_val, bytearray):
+            price_val = price_val.decode('utf-8')
+        p['price'] = float(price_val)
+        
+        unit_val = p['unit_per_qty']
+        if isinstance(unit_val, bytearray):
+            unit_val = unit_val.decode('utf-8')
+        p['unit_per_qty'] = float(unit_val)
         
     return products
 
@@ -224,6 +231,11 @@ def login():
     else:
         return jsonify({"status": "error", "message": "Invalid email or password"}), 401
 
+@app.route('/calculator', methods=['GET'])
+def calculator_page():
+    google_maps_key = os.getenv("MAPS_API_KEY")
+    return render_template('receipt.html', maps_api_key=google_maps_key)
+
 @app.route('/calculate', methods=['POST'])
 def calculate_grocery_list():
     try:
@@ -307,15 +319,17 @@ def calculate_grocery_list():
                 alternatives = sorted(alternatives, key=lambda x: x["price"])
                 
                 final_receipt.append({
-                    "product_id": chosen_id,
-                    "product_name": selected_product["product_name"],
-                    "brand_name": selected_product.get("brand_name", "Local"),
-                    "category_name": selected_product["category_name"],
-                    "unit": selected_product["unit"],
-                    "unit_per_qty": selected_product["unit_per_qty"],
-                    "price": selected_product["price"],
-                    "calculated_qty": calc_qty,
-                    "subtotal": round(item_subtotal, 2),
+                    "selected": {
+                        "product_id": chosen_id,
+                        "product_name": selected_product["product_name"],
+                        "brand_name": selected_product.get("brand_name", "Local"),
+                        "category_name": selected_product["category_name"],
+                        "unit": selected_product["unit"],
+                        "unit_per_qty": selected_product["unit_per_qty"],
+                        "price": selected_product["price"],
+                        "calculated_qty": calc_qty,
+                        "subtotal": round(item_subtotal, 2)
+                    },
                     "alternatives": alternatives
                 })
 

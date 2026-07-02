@@ -124,6 +124,8 @@ async function submitGroceryForm(event) {
     const rawItemsText = String(formData.get('raw_items') || '');
 
     const payload = {
+        user_id: localStorage.getItem('user_id') || 1, 
+        
         budget: Number(formData.get('budget')),
         elderly_count: Number(formData.get('elderly_count')),
         adult_count: Number(formData.get('adult_count')),
